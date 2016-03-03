@@ -1,52 +1,132 @@
 window.onload = function() {
-    // You might want to start with a template that uses GameStates:
-    //     https://github.com/photonstorm/phaser/tree/master/resources/Project%20Templates/Basic
-    
-    // You can copy-and-paste the code from any of the examples at http://examples.phaser.io here.
-    // You will need to change the fourth parameter to "new Phaser.Game()" from
-    // 'phaser-example' to 'game', which is the id of the HTML element where we
-    // want the game to go.
-    // The assets (and code) can be found at: https://github.com/photonstorm/phaser/tree/master/examples/assets
-    // You will need to change the paths you pass to "game.load.image()" or any other
-    // loading functions to reflect where you are putting the assets.
-    // All loading functions will typically all be found inside "preload()".
-    
     "use strict";
     
-    var game = new Phaser.Game( 800, 600, Phaser.AUTO, 'game', { preload: preload, create: create, update: update } );
+    var game = new Phaser.Game( 640, 640, Phaser.AUTO, 'game', { preload: preload, create: create, update: update } );
+    
+    var player;
+    var exit;
+    
+    var upKey;
+    var downKey;
+    var leftKey;
+    var rightKey;
+    
+    var upAni;
+    var downAni;
+    var leftAni;
+    var rightAni;
+    
+    var bgMusic;
+    
+    var text;
+    var style;
+    var t;
     
     function preload() {
-        // Load an image and call it 'logo'.
-        game.load.image( 'logo', 'assets/phaser.png' );
+        game.load.tilemap('map', 'assets/maze.json', null, Phaser.Tilemap.TILED_JSON);
+        
+        game.load.spritesheet('player', 'assets/player_sprite.png', 24, 24, 8);
+        game.load.image('ground', 'assets/ground.png');
+        game.load.image('trees', 'assets/trees.png');
+        game.load.image('cave', 'assets/opening.png');
+        
+        game.load.audio('bgMusic', 'assets/TooExcited.mp3')
     }
     
-    var bouncy;
+    var map;
+    var layer;
+    var floor;
     
-    function create() {
-        // Create a sprite at the center of the screen using the 'logo' image.
-        bouncy = game.add.sprite( game.world.centerX, game.world.centerY, 'logo' );
-        // Anchor the sprite at its center, as opposed to its top-left corner.
-        // so it will be truly centered.
-        bouncy.anchor.setTo( 0.5, 0.5 );
+    function create() {   
+        // Physics
+        game.physics.startSystem(Phaser.Physics.ARCADE);
         
-        // Turn on the arcade physics engine for this sprite.
-        game.physics.enable( bouncy, Phaser.Physics.ARCADE );
-        // Make it bounce off of the world bounds.
-        bouncy.body.collideWorldBounds = true;
+        map = game.add.tilemap('map');
         
-        // Add some text using a CSS style.
-        // Center it in X, and position its top 15 pixels from the top of the world.
-        var style = { font: "25px Verdana", fill: "#9999ff", align: "center" };
-        var text = game.add.text( game.world.centerX, 15, "Build something awesome.", style );
-        text.anchor.setTo( 0.5, 0.0 );
+        map.addTilesetImage('ground');
+        map.addTilesetImage('trees');
+        
+        map.setCollisionBetween(1, 8, true, 'Maze Layer');
+        
+        layer = map.createLayer('Ground Layer');
+        layer = map.createLayer('Maze Layer');
+        
+        layer.resizeWorld();
+        
+        // Player
+        player = game.add.sprite(288, 600, 'player', 2);
+        player.smoothed = false;
+        
+        upKey = game.input.keyboard.addKey(Phaser.Keyboard.UP);
+        downKey = game.input.keyboard.addKey(Phaser.Keyboard.DOWN);
+        leftKey = game.input.keyboard.addKey(Phaser.Keyboard.LEFT);
+        rightKey = game.input.keyboard.addKey(Phaser.Keyboard.RIGHT);
+        
+        upAni = player.animations.add('up', [4,5], 8, true);
+        downAni = player.animations.add('down', [2,3], 8, true);
+        leftAni = player.animations.add('left', [0,1], 8, true);
+        rightAni = player.animations.add('right', [6,7], 8, true);
+        
+        game.physics.enable(player, Phaser.Physics.ARCADE);
+        player.body.collideWorldBounds = true;
+        
+        // Music
+        bgMusic = game.add.audio('bgMusic');
+        bgMusic.play();
+        
+        // Exit
+        exit = game.add.sprite(288, 0, 'cave');
+        game.physics.enable(exit, Phaser.Physics.ARCADE);
+        
+        exit.body.checkCollision.down = true;
+        exit.body.immovable = true;
+        
+        text = "You have escaped!";
+        style = { font: "65px Arial", fill: "#000000", align: "center" };
     }
     
     function update() {
-        // Accelerate the 'logo' sprite towards the cursor,
-        // accelerating at 500 pixels/second and moving no faster than 500 pixels/second
-        // in X or Y.
-        // This function returns the rotation angle that makes it visually match its
-        // new trajectory.
-        bouncy.rotation = game.physics.arcade.accelerateToPointer( bouncy, this.game.input.activePointer, 500, 500, 500 );
+        game.physics.arcade.collide(player, layer);
+        
+        player.body.velocity.x = 0;
+        player.body.velocity.y = 0;
+        
+        if (upKey.isDown)
+        {
+            player.body.velocity.y = -200;
+            player.play('up');
+        }
+        else if (downKey.isDown)
+        {
+            player.body.velocity.y = 200;
+            player.play('down');
+        }
+        else if (leftKey.isDown)
+        {
+            player.body.velocity.x = -200;
+            player.play('left');
+        }
+        else if (rightKey.isDown)
+        {
+            player.body.velocity.x = 200;
+            player.play('right');
+        }
+        else
+            player.animations.stop();
+        
+        // Music
+        if (!(bgMusic.isPlaying))
+            {
+                bgMusic.play();
+            }
+        
+        // End
+        if (game.physics.arcade.collide(player, exit))
+        {
+            player.destroy();
+            t = game.add.text(game.world.centerX-300, 0, text, style);
+            
+        } 
+            
     }
 };
